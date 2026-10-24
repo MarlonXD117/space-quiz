@@ -461,6 +461,8 @@
     let currentQuestion = 0;
     let score = 0;
     let answered = false;
+    let gameQuestions = [];
+    let previousQuestionOrder = null;
 
     const count = document.getElementById("question-count");
     const scoreDisplay = document.getElementById("score");
@@ -474,11 +476,38 @@
     const resultScreen = document.getElementById("result-screen");
     const footer = document.getElementById("footer-note");
 
+    function shuffle(items) {
+      const shuffled = [...items];
+      for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+      }
+      return shuffled;
+    }
+
+    function startNewGame() {
+      const questionOrder = shuffle(questions.map((_, index) => index));
+      if (previousQuestionOrder
+        && questionOrder.every((questionIndex, index) => questionIndex === previousQuestionOrder[index])) {
+        [questionOrder[0], questionOrder[1]] = [questionOrder[1], questionOrder[0]];
+      }
+      previousQuestionOrder = questionOrder;
+      gameQuestions = questionOrder.map((questionIndex) => {
+        const question = questions[questionIndex];
+        const options = shuffle(question.options.map((option, index) => ({ option, index })));
+        return {
+          ...question,
+          options: options.map(({ option }) => option),
+          answer: options.findIndex(({ index }) => index === question.answer)
+        };
+      });
+    }
+
     function renderQuestion() {
-      const item = questions[currentQuestion];
+      const item = gameQuestions[currentQuestion];
       answered = false;
-      count.textContent = `Pregunta ${currentQuestion + 1} de ${questions.length}`;
-      progressFill.style.width = `${(currentQuestion / questions.length) * 100}%`;
+      count.textContent = `Pregunta ${currentQuestion + 1} de ${gameQuestions.length}`;
+      progressFill.style.width = `${(currentQuestion / gameQuestions.length) * 100}%`;
       progressTrack.setAttribute("aria-valuenow", String(currentQuestion));
       title.textContent = item.question;
       feedback.textContent = "";
@@ -503,7 +532,7 @@
     function chooseAnswer(selected) {
       if (answered) return;
       answered = true;
-      const item = questions[currentQuestion];
+      const item = gameQuestions[currentQuestion];
       const buttons = answers.querySelectorAll(".answer");
       const isCorrect = selected === item.answer;
 
@@ -521,7 +550,7 @@
         buttons[selected].classList.add("incorrect");
       }
 
-      progressFill.style.width = `${((currentQuestion + 1) / questions.length) * 100}%`;
+      progressFill.style.width = `${((currentQuestion + 1) / gameQuestions.length) * 100}%`;
       progressTrack.setAttribute("aria-valuenow", String(currentQuestion + 1));
       feedback.innerHTML = isCorrect
         ? `<strong>¡Correcto!</strong> ${item.explanation}`
@@ -531,7 +560,7 @@
     }
 
     function showResult() {
-      const percentage = score / questions.length;
+      const percentage = score / gameQuestions.length;
       const reaction = percentage === 1
         ? ["🚀", "¡Dominio estelar!", "Has acertado todas. La exploración espacial no tiene secretos para ti."]
         : percentage >= .7
@@ -547,7 +576,7 @@
         <p class="eyebrow">Misión completada</p>
         <h1>${reaction[1]}</h1>
         <p class="result-copy">${reaction[2]}</p>
-        <p class="result-score">Tu puntuación: <strong>${score}</strong> / ${questions.length}</p>
+        <p class="result-score">Tu puntuación: <strong>${score}</strong> / ${gameQuestions.length}</p>
         <button class="primary" id="restart-button" type="button">Jugar de nuevo <span aria-hidden="true">↻</span></button>
       `;
       footer.textContent = "Gracias por viajar con Órbita";
@@ -559,6 +588,7 @@
       currentQuestion = 0;
       score = 0;
       scoreDisplay.textContent = "0";
+      startNewGame();
       quizScreen.classList.remove("hidden");
       resultScreen.classList.add("hidden");
       footer.textContent = "10 preguntas · Una pequeña aventura por el cosmos";
@@ -568,7 +598,7 @@
 
     nextButton.addEventListener("click", () => {
       if (!answered) return;
-      if (currentQuestion === questions.length - 1) {
+      if (currentQuestion === gameQuestions.length - 1) {
         showResult();
         return;
       }
@@ -577,6 +607,7 @@
       title.focus();
     });
 
+    startNewGame();
     renderQuestion();
   </script>
 </body>
